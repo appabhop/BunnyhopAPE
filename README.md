@@ -7,6 +7,12 @@ Description
 * Won't work without `-insecure` key in startup parameters (otherwise is very likely to trigger a VAC detection).
 * Can be toggled by `Scroll Lock` key.
 
+Changelog
+--
+* No "Memory Access Violation" once you close BunnyhopAPE.exe after closing CSS
+* Automatically reverts to "Waiting for CSS to open" state after CSS closes (no need to close and relaunch bunnyhopape)
+
+
 How to build
 --
 1. Open `BunnyhopAPE.vcproj` in Visual Studio.
