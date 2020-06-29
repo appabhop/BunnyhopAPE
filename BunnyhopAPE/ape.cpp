@@ -9,7 +9,7 @@ BYTE* g_pJumpPrediction;
 BYTE g_patchedBuffer[6];
 BYTE g_nopBuffer[6] = { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 };
 bool g_bPatched;
-int g_iOldState;
+bool g_bProgramExited = false;
 
 void Error(char* text)
 {
@@ -17,7 +17,7 @@ void Error(char* text)
 	ExitProcess(0);
 }
 
-void UpdateConlole()
+void UpdateConsole()
 {
 	system("cls");
 	printf("Use SCROLL LOCK to toggle prediction.\nPrediction status: %s\n", g_bPatched ? "ON" : "OFF");
@@ -31,7 +31,7 @@ void EnablePrediction()
 		g_bPatched = true;
 	else Error("Game is already patched or signatures are outdated!");
 
-	UpdateConlole();
+	UpdateConsole();
 }
 
 void DisablePrediction(bool notify = true)
@@ -41,9 +41,9 @@ void DisablePrediction(bool notify = true)
 		if (notify)
 			g_bPatched = false;
 	}
-	else Error("Memory access violation!");
+	else g_bProgramExited = true;//Error("Memory access violation!");
 
-	UpdateConlole();
+	UpdateConsole();
 }
 
 bool WINAPI ConsoleHandler(DWORD dwCtrlType)
@@ -54,11 +54,10 @@ bool WINAPI ConsoleHandler(DWORD dwCtrlType)
 	return 0;
 }
 
-int main()
+DWORD WaitForGame()
 {
-	SetConsoleTitle("CS:S Autobhop Prediction Enabler by alkatrazbhop");
-
 	DWORD processID;
+	system("cls");
 	printf("Waiting for CS:S to start...");
 	while (1)
 	{
@@ -67,6 +66,12 @@ int main()
 		Sleep(1000);
 	}
 
+	return processID;
+}
+
+void BunnyhopAPE()
+{
+	DWORD processID = WaitForGame();
 	g_hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processID);
 
 	DWORD pClient;
@@ -86,21 +91,40 @@ int main()
 	if (!strstr(cmdLine, " -insecure"))
 		Error("-insecure key is missing!");
 
+	g_bPatched = false;
 	g_pJumpPrediction = (BYTE*)(FindPatternEx(g_hProcess, pClient, 0x200000, (PBYTE)"\x85\xC0\x8B\x46\x08\x0F\x84\x00\xFF\xFF\xFF\xF6\x40\x28\x02\x0F\x85\x00\xFF\xFF\xFF", "xxxxxxx?xxxxxxxxx?xxx")) + 15;
 
-	SetConsoleCtrlHandler((PHANDLER_ROUTINE)&ConsoleHandler, true);
-	UpdateConlole();
+	UpdateConsole();
 
-	while (1)
+	while (!g_bProgramExited)
 	{
-		if (GetKeyState(VK_SCROLL) & 1 && !g_bPatched)
-			EnablePrediction();
-		else if (!(GetKeyState(VK_SCROLL) & 1) && g_bPatched)
-			DisablePrediction();
+		DWORD dwExitCode = 0;
+
+		GetExitCodeProcess(g_hProcess, &dwExitCode);
+		if (dwExitCode == STILL_ACTIVE)
+		{
+			if (GetKeyState(VK_SCROLL) & 1 && !g_bPatched)
+				EnablePrediction();
+			else if (!(GetKeyState(VK_SCROLL) & 1) && g_bPatched)
+				DisablePrediction();
+		}
+		else return;
+
 		Sleep(100);
 	}
 
 	CloseHandle(g_hProcess);
-	while (_getch() != VK_RETURN) {}
+
+	return;
+}
+
+int main()
+{
+	SetConsoleTitle("CS:S Autobhop Prediction Enabler by alkatrazbhop & edited by appa");
+	SetConsoleCtrlHandler((PHANDLER_ROUTINE)&ConsoleHandler, true);
+
+	while (!g_bProgramExited)
+		BunnyhopAPE();
+
 	return false;
 }
